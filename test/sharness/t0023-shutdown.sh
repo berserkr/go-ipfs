@@ -17,6 +17,7 @@ test_expect_success "shutdown succeeds" '
 '
 
 test_expect_success "daemon no longer running" '
+	go-sleep 50ms
 	test_expect_code  1 kill -0 $IPFS_PID
 '
 
