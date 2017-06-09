@@ -11,6 +11,7 @@ import (
 	cmds "github.com/ipfs/go-ipfs/commands"
 	core "github.com/ipfs/go-ipfs/core"
 
+	"gx/ipfs/QmT7xnHPBQcMbgpcDJ81opQZzU4LfLCFv5U1B6YERMRsDj/go-ipfs-cmdkit"
 	ma "gx/ipfs/QmcyqRMCAXVtYPS4DiBrA7sezL9rRGfW8Ctx7cywL4TXJj/go-multiaddr"
 )
 
@@ -42,7 +43,7 @@ type PTPStreamsOutput struct {
 
 // PTPCmd is the 'ipfs ptp' command
 var PTPCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Libp2p stream mounting.",
 		ShortDescription: `
 Create and use tunnels to remote peers over libp2p
@@ -58,7 +59,7 @@ Note: this command is experimental and subject to change as usecases and APIs ar
 
 // ptpListenerCmd is the 'ipfs ptp listener' command
 var ptpListenerCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline:          "P2P listener management.",
 		ShortDescription: "Create and manage listener p2p endpoints",
 	},
@@ -72,7 +73,7 @@ var ptpListenerCmd = &cmds.Command{
 
 // ptpStreamCmd is the 'ipfs ptp stream' command
 var ptpStreamCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline:          "P2P stream management.",
 		ShortDescription: "Create and manage p2p streams",
 	},
@@ -85,17 +86,17 @@ var ptpStreamCmd = &cmds.Command{
 }
 
 var ptpListenerLsCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "List active p2p listeners.",
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("headers", "v", "Print table headers (HandlerID, Protocol, Local, Remote).").Default(false),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("headers", "v", "Print table headers (HandlerID, Protocol, Local, Remote).").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 
 		n, err := getNode(req)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -113,8 +114,13 @@ var ptpListenerLsCmd = &cmds.Command{
 	Type: PTPLsOutput{},
 	Marshalers: cmds.MarshalerMap{
 		cmds.Text: func(res cmds.Response) (io.Reader, error) {
+			v, err := unwrapOutput(res.Output())
+			if err != nil {
+				return nil, err
+			}
+
 			headers, _, _ := res.Request().Option("headers").Bool()
-			list, _ := res.Output().(*PTPLsOutput)
+			list := v.(*PTPLsOutput)
 			buf := new(bytes.Buffer)
 			w := tabwriter.NewWriter(buf, 1, 2, 1, ' ', 0)
 			for _, listener := range list.Listeners {
@@ -132,16 +138,16 @@ var ptpListenerLsCmd = &cmds.Command{
 }
 
 var ptpStreamLsCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "List active p2p streams.",
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("headers", "v", "Print table headers (HagndlerID, Protocol, Local, Remote).").Default(false),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("headers", "v", "Print table headers (HagndlerID, Protocol, Local, Remote).").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := getNode(req)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -166,8 +172,13 @@ var ptpStreamLsCmd = &cmds.Command{
 	Type: PTPStreamsOutput{},
 	Marshalers: cmds.MarshalerMap{
 		cmds.Text: func(res cmds.Response) (io.Reader, error) {
+			v, err := unwrapOutput(res.Output())
+			if err != nil {
+				return nil, err
+			}
+
 			headers, _, _ := res.Request().Option("headers").Bool()
-			list, _ := res.Output().(*PTPStreamsOutput)
+			list := v.(*PTPStreamsOutput)
 			buf := new(bytes.Buffer)
 			w := tabwriter.NewWriter(buf, 1, 2, 1, ' ', 0)
 			for _, stream := range list.Streams {
@@ -185,7 +196,7 @@ var ptpStreamLsCmd = &cmds.Command{
 }
 
 var ptpListenerListenCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Forward p2p connections to a network multiaddr.",
 		ShortDescription: `
 Register a p2p connection handler and forward the connections to a specified address.
@@ -193,32 +204,32 @@ Register a p2p connection handler and forward the connections to a specified add
 Note that the connections originate from the ipfs daemon process.
 		`,
 	},
-	Arguments: []cmds.Argument{
-		cmds.StringArg("Protocol", true, false, "Protocol identifier."),
-		cmds.StringArg("Address", true, false, "Request handling application address."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("Protocol", true, false, "Protocol identifier."),
+		cmdkit.StringArg("Address", true, false, "Request handling application address."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := getNode(req)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		proto := "/ptp/" + req.Arguments()[0]
 		if n.PTP.CheckProtoExists(proto) {
-			res.SetError(errors.New("protocol handler already registered"), cmds.ErrNormal)
+			res.SetError(errors.New("protocol handler already registered"), cmdkit.ErrNormal)
 			return
 		}
 
 		addr, err := ma.NewMultiaddr(req.Arguments()[1])
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		_, err = n.PTP.NewListener(n.Context(), proto, addr)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -231,7 +242,7 @@ Note that the connections originate from the ipfs daemon process.
 }
 
 var ptpStreamDialCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Dial to a p2p listener.",
 
 		ShortDescription: `
@@ -242,21 +253,21 @@ TCP listener and return it's bind port, this way a dialing application can
 transparently connect to a p2p service.
 		`,
 	},
-	Arguments: []cmds.Argument{
-		cmds.StringArg("Peer", true, false, "Remote peer to connect to"),
-		cmds.StringArg("Protocol", true, false, "Protocol identifier."),
-		cmds.StringArg("BindAddress", false, false, "Address to listen for connection/s (default: /ip4/127.0.0.1/tcp/0)."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("Peer", true, false, "Remote peer to connect to"),
+		cmdkit.StringArg("Protocol", true, false, "Protocol identifier."),
+		cmdkit.StringArg("BindAddress", false, false, "Address to listen for connection/s (default: /ip4/127.0.0.1/tcp/0)."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := getNode(req)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		addr, peer, err := ParsePeerParam(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -266,14 +277,14 @@ transparently connect to a p2p service.
 		if len(req.Arguments()) == 3 {
 			bindAddr, err = ma.NewMultiaddr(req.Arguments()[2])
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 		}
 
 		listenerInfo, err := n.PTP.Dial(n.Context(), addr, peer, proto, bindAddr)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -287,19 +298,21 @@ transparently connect to a p2p service.
 }
 
 var ptpListenerCloseCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Close active p2p listener.",
 	},
-	Arguments: []cmds.Argument{
-		cmds.StringArg("Protocol", false, false, "P2P listener protocol"),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("Protocol", false, false, "P2P listener protocol"),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("all", "a", "Close all listeners.").Default(false),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("all", "a", "Close all listeners.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
+		res.SetOutput(nil)
+
 		n, err := getNode(req)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -308,7 +321,7 @@ var ptpListenerCloseCmd = &cmds.Command{
 
 		if !closeAll {
 			if len(req.Arguments()) == 0 {
-				res.SetError(errors.New("no protocol name specified"), cmds.ErrNormal)
+				res.SetError(errors.New("no protocol name specified"), cmdkit.ErrNormal)
 				return
 			}
 
@@ -328,19 +341,21 @@ var ptpListenerCloseCmd = &cmds.Command{
 }
 
 var ptpStreamCloseCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Close active p2p stream.",
 	},
-	Arguments: []cmds.Argument{
-		cmds.StringArg("HandlerID", false, false, "Stream HandlerID"),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("HandlerID", false, false, "Stream HandlerID"),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("all", "a", "Close all streams.").Default(false),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("all", "a", "Close all streams.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
+		res.SetOutput(nil)
+
 		n, err := getNode(req)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -349,13 +364,13 @@ var ptpStreamCloseCmd = &cmds.Command{
 
 		if !closeAll {
 			if len(req.Arguments()) == 0 {
-				res.SetError(errors.New("no HandlerID specified"), cmds.ErrNormal)
+				res.SetError(errors.New("no HandlerID specified"), cmdkit.ErrNormal)
 				return
 			}
 
 			handlerID, err = strconv.ParseUint(req.Arguments()[0], 10, 64)
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 		}

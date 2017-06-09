@@ -691,7 +691,7 @@ stat' on the file or any of its ancestors.
 			r = io.LimitReader(r, int64(count))
 		}
 
-		_, err := io.Copy(wfd, r)
+		_, err = io.Copy(wfd, r)
 		if err != nil {
 			res.SetError(err, cmdkit.ErrNormal)
 			return

@@ -692,7 +692,7 @@ remove your filters from the ipfs config file.
 
 		removed, err := filtersRemove(r, cfg, req.Arguments())
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
